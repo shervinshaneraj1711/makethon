@@ -85,6 +85,21 @@ class TelemetryService:
             await self._diagnostic("ERROR", "storage_failed", str(exc))
             return
 
+        # V2: Automated Response Orchestration
+        try:
+            from .analytics import calculate_flood_prediction
+            # Pull latest history to calculate trend
+            rows = await asyncio.to_thread(self.repository.list, limit=50)
+            rows.reverse()
+            prediction = calculate_flood_prediction(rows)
+            
+            # If AI predicts flood, send hardware command down to ESP32
+            if prediction.get("status") in ["WARNING", "CRITICAL"]:
+                command = b'{"command": "trigger_siren"}\n'
+                await asyncio.to_thread(self.transport.write, command)
+        except Exception as e:
+            logger.error(f"Automated orchestration failed: {e}")
+
         self.snapshot = ConnectionSnapshot(
             state="connected",
             transport=self.transport.name,

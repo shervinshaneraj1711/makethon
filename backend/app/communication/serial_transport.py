@@ -8,7 +8,7 @@ from .base import TelemetryTransport
 
 
 class SerialTransport(TelemetryTransport):
-    name = "bluetooth_spp"
+    name = "serial"
 
     def __init__(self, port: str | None, baud_rate: int, *, timeout: float = 1.0) -> None:
         self.endpoint = port
@@ -35,6 +35,15 @@ class SerialTransport(TelemetryTransport):
             return payload.decode("utf-8", errors="strict").rstrip("\r\n")
         except UnicodeDecodeError as exc:
             raise ValueError("serial packet is not valid UTF-8") from exc
+
+    def write(self, data: bytes) -> None:
+        if self._serial is None or not self._serial.is_open:
+            raise RuntimeError("serial connection is not open")
+        try:
+            self._serial.write(data)
+            self._serial.flush()
+        except serial.SerialException as exc:
+            raise RuntimeError(f"serial write failed: {exc}") from exc
 
     def close(self) -> None:
         if self._serial is not None:

@@ -1,32 +1,25 @@
 import { formatDeviceTimestamp, formatNumber, formatTimestamp } from "../format";
 import type { Reading } from "../types";
 
-interface ReadingTableProps {
-  readings: Reading[];
-  mode: "raw" | "history";
-  loading?: boolean;
-}
-
-function OptionalValue({ value }: { value: string | number | boolean | null }) {
-  if (value === null) return <span className="muted">—</span>;
-  if (typeof value === "boolean") return <>{value ? "Rain" : "Dry"}</>;
-  return <>{value}</>;
-}
-
-export function ReadingTable({ readings, mode, loading = false }: ReadingTableProps) {
-  if (loading) return <p className="table-message">Loading stored readings…</p>;
-  if (!readings.length) return <p className="table-message">No telemetry has been stored yet.</p>;
+export function ReadingTable({ readings, mode, loading = false }: { readings: Reading[], mode: "raw" | "history", loading?: boolean }) {
+  if (loading) return <p>Loading stored readings…</p>;
+  if (!readings.length) return <p>No telemetry has been stored yet.</p>;
 
   if (mode === "raw") {
     return (
-      <div className="table-scroll">
-        <table className="raw-table">
-          <thead><tr><th>Received</th><th>Raw ESP32 packet</th></tr></thead>
+      <div className="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: '140px' }}>Received Time</th>
+              <th>Raw Packet (JSON)</th>
+            </tr>
+          </thead>
           <tbody>
             {readings.slice(0, 12).map((reading) => (
               <tr key={reading.id}>
                 <td>{formatTimestamp(reading.received_at)}</td>
-                <td><code>{reading.raw_packet}</code></td>
+                <td className="raw-code">{reading.raw_packet}</td>
               </tr>
             ))}
           </tbody>
@@ -36,27 +29,31 @@ export function ReadingTable({ readings, mode, loading = false }: ReadingTablePr
   }
 
   return (
-    <div className="table-scroll">
+    <div className="table-wrapper">
       <table>
         <thead>
           <tr>
-            <th>Device time</th><th>Device</th><th>Distance</th><th>Pressure</th>
-            <th>Tilt X</th><th>Tilt Y</th><th>Tilt Z</th><th>Rain</th><th>Battery</th><th>Status</th>
+            <th>Time</th>
+            <th>Device</th>
+            <th>Water Lvl</th>
+            <th>Roll</th>
+            <th>Pitch</th>
+            <th>Alert</th>
           </tr>
         </thead>
         <tbody>
           {readings.map((reading) => (
             <tr key={reading.id}>
-              <td>{formatDeviceTimestamp(reading.device_timestamp)}</td>
+              <td>{reading.device_timestamp ? formatDeviceTimestamp(reading.device_timestamp).split(' ')[1] : formatTimestamp(reading.received_at).split(' ')[1]}</td>
               <td>{reading.device_id}</td>
-              <td>{formatNumber(reading.distance)}</td>
-              <td>{formatNumber(reading.pressure, 3)}</td>
-              <td>{formatNumber(reading.tilt_x)}</td>
-              <td>{formatNumber(reading.tilt_y)}</td>
-              <td>{formatNumber(reading.tilt_z)}</td>
-              <td><OptionalValue value={reading.rain} /></td>
-              <td><OptionalValue value={reading.battery} /></td>
-              <td><OptionalValue value={reading.device_status} /></td>
+              <td>{formatNumber(reading.water_level, 1)} cm</td>
+              <td>{formatNumber(reading.roll)}°</td>
+              <td>{formatNumber(reading.pitch)}°</td>
+              <td>
+                <span className={`status-badge ${reading.alert ? 'alert' : ''}`} style={{ backgroundColor: reading.alert ? '#fecaca' : '#dcfce7', color: reading.alert ? '#991b1b' : '#166534' }}>
+                  {reading.alert ? 'DANGER' : 'SAFE'}
+                </span>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -64,4 +61,3 @@ export function ReadingTable({ readings, mode, loading = false }: ReadingTablePr
     </div>
   );
 }
-

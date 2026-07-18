@@ -3,14 +3,10 @@ export interface Reading {
   device_id: string;
   device_timestamp: string;
   received_at: string;
-  distance: number;
-  pressure: number;
-  tilt_x: number;
-  tilt_y: number;
-  tilt_z: number;
-  rain: boolean | null;
-  battery: number | null;
-  device_status: string | null;
+  water_level: number | null;
+  roll: number | null;
+  pitch: number | null;
+  alert: boolean | null;
   raw_packet: string;
 }
 
@@ -35,4 +31,3 @@ export interface ConnectionSnapshot {
 export type LiveEvent =
   | { type: "connection"; data: ConnectionSnapshot }
   | { type: "reading"; data: Reading };
-

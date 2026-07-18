@@ -30,18 +30,46 @@ class SimulatorTransport(TelemetryTransport):
             return None
         self._sample += 1
         now = datetime.now()
-        distance = 124.5 + math.sin(self._sample / 5) * 1.8
+        import json
+        
+        # Simulate a flash flood! Distance decreases by 2cm every sample (2 seconds)
+        distance = max(15.0, 160.0 - (self._sample * 2.0))
+        
         pressure = 1.98 + math.cos(self._sample / 7) * 0.04
         tilt_x = 2.3 + math.sin(self._sample / 4) * 0.3
         tilt_y = -1.1 + math.cos(self._sample / 4) * 0.2
         tilt_z = 180.4 + math.sin(self._sample / 8) * 0.2
-        rain = 1 if self._sample % 20 > 15 else 0
+        rain = True if self._sample % 20 > 15 else False
         battery = max(0.0, 92.0 - self._sample * 0.01)
-        return (
-            f"Node01,{now:%d-%m-%Y},{now:%H:%M:%S},{distance:.2f},"
-            f"{pressure:.3f},{tilt_x:.2f},{tilt_y:.2f},{tilt_z:.2f},"
-            f"{rain},{battery:.1f},ONLINE"
-        )
+        
+        # Calculate fake status
+        status = "SAFE"
+        if distance < 60: status = "WARNING"
+        if distance < 30: status = "DANGER"
+
+        return json.dumps({
+            "deviceId": "SimNode01",
+            "date": now.strftime("%d-%m-%Y"),
+            "time": now.strftime("%H:%M:%S"),
+            "distance": round(distance, 2),
+            "pressure": round(pressure, 3),
+            "tilt": {
+                "x": round(tilt_x, 2),
+                "y": round(tilt_y, 2),
+                "z": round(tilt_z, 2)
+            },
+            "rain": rain,
+            "battery": round(battery, 1),
+            "status": status
+        })
+
+    def write(self, data: bytes) -> None:
+        if not self._connected:
+            raise RuntimeError("simulator is not connected")
+        # In the simulator, we just print the received commands to the console
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Simulator received hardware command: {data.decode('utf-8').strip()}")
 
     def close(self) -> None:
         self._connected = False

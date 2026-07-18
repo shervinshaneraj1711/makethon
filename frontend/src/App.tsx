@@ -1,65 +1,131 @@
-import { ConnectionBanner } from "./components/ConnectionBanner";
-import { ReadingTable } from "./components/ReadingTable";
-import { SensorCards } from "./components/SensorCards";
-import { formatDeviceTimestamp } from "./format";
+import { useState, useEffect } from "react";
+import { formatDeviceTimestamp, formatTimestamp } from "./format";
 import { useTelemetry } from "./hooks/useTelemetry";
+import { SensorCards } from "./components/SensorCards";
+import { LiveChart } from "./components/LiveChart";
+import { ReadingTable } from "./components/ReadingTable";
+import { DeviceSettings } from "./components/DeviceSettings";
+import "./styles.css";
 
 export default function App() {
   const { connection, readings, latest, historyLoading, historyError } = useTelemetry();
+  const [prediction, setPrediction] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchPrediction = async () => {
+      try {
+        const res = await fetch("/api/v1/predict");
+        if (res.ok) setPrediction(await res.json());
+      } catch (err) {}
+    };
+    fetchPrediction();
+    const interval = setInterval(fetchPrediction, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isConnected = connection.state === "connected";
+
+  if (!latest) {
+    return (
+      <main>
+        <div className="empty-state">
+          <h2>Awaiting telemetry from backend...</h2>
+          <p>The dashboard will automatically populate once hardware connects.</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main>
-      <header className="site-header">
-        <div className="identity">
-          <span className="station-mark" aria-hidden="true"><i /><i /><i /></span>
-          <div>
-            <span className="eyebrow">Field station / Version 1</span>
-            <h1>River Monitor</h1>
-          </div>
+      {/* 1. Header */}
+      <header className="top-header">
+        <div className="header-item">
+          <h2>RIVER MONITOR</h2>
+          <span>App Title</span>
         </div>
-        <div className="device-stamp">
-          <span className="eyebrow">Active node</span>
-          <strong>{latest?.device_id ?? connection.latest_device_id ?? "Awaiting device"}</strong>
-          <span>{latest ? formatDeviceTimestamp(latest.device_timestamp) : "No device timestamp"}</span>
+        <div className="header-divider" />
+        <div className="header-item">
+          <strong>{latest?.device_id || "RiverNode01"}</strong>
+          <span>Device ID</span>
+        </div>
+        <div className="header-divider" />
+        <div className="header-item">
+          <strong>{formatTimestamp(latest.received_at)}</strong>
+          <span>Last Updated</span>
+        </div>
+        <div className="header-divider" />
+        <div className="header-item">
+          <div className={`status-indicator ${!isConnected ? 'disconnected' : ''}`}>
+            <span className="status-dot" />
+            <strong>{isConnected ? 'CONNECTED' : 'DISCONNECTED'}</strong>
+          </div>
+          <span>Status</span>
+        </div>
+        <div className="header-divider" />
+        <div className="header-item">
+          <strong>{connection.port || "COM7 (Serial)"}</strong>
+          <span>Transport</span>
         </div>
       </header>
 
-      <ConnectionBanner connection={connection} />
+      {/* 2. Alert Banner */}
+      {prediction && prediction.status !== "STABLE" && prediction.status !== "INSUFFICIENT_DATA" && (
+        <div className="alert-banner">
+          <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+          <span><strong>CRITICAL ALERT:</strong> {prediction.message}</span>
+        </div>
+      )}
 
-      <section className="section-heading">
+      {/* 3. Sensor Metrics */}
+      <div>
+        <h3 className="section-title">Live Sensor Metrics</h3>
+        <SensorCards reading={latest} />
+      </div>
+
+      {/* 4. Middle Row: Chart and Settings */}
+      <div className="middle-row">
         <div>
-          <span className="eyebrow">Live telemetry</span>
-          <h2>Current conditions</h2>
+          <h3 className="section-title">Real-Time Chart</h3>
+          <div className="panel">
+            <div className="panel-header">
+              <h3>Real-Time Water Level (cm) - Last 100 Readings</h3>
+            </div>
+            <LiveChart readings={readings} />
+          </div>
         </div>
-        <span className="truth-label">Direct sensor values · no calculations</span>
-      </section>
-      <SensorCards reading={latest} />
-
-      <section className="data-panel raw-panel">
-        <div className="panel-heading">
-          <div><span className="eyebrow">Wire view</span><h2>Raw telemetry</h2></div>
-          <span>Latest 12 packets</span>
+        <div>
+          <h3 className="section-title">Device Settings</h3>
+          <div className="panel">
+            <DeviceSettings />
+          </div>
         </div>
-        <ReadingTable readings={readings} mode="raw" />
-      </section>
+      </div>
 
-      <section className="data-panel history-panel">
-        <div className="panel-heading">
-          <div><span className="eyebrow">SQLite archive</span><h2>Reading history</h2></div>
-          <a className="export-button" href="/api/v1/readings/export.csv" download>
-            Export CSV <span aria-hidden="true">↗</span>
-          </a>
+      {/* 5. Bottom Row: Tables */}
+      <div>
+        <h3 className="section-title">Developer Archives</h3>
+        <div className="bottom-row">
+          <div className="panel">
+            <div className="panel-header" style={{ justifyContent: 'flex-start' }}>
+              <h3 style={{ textAlign: 'left', width: 'auto' }}>Raw Wire View</h3>
+            </div>
+            <ReadingTable readings={readings} mode="raw" />
+          </div>
+          <div className="panel">
+            <div className="panel-header" style={{ marginBottom: '8px' }}>
+              <h3 style={{ textAlign: 'left', width: 'auto', margin: 0 }}>Database History</h3>
+              <a href="/api/v1/readings/export.csv" download className="export-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                Expert History (CSV)
+              </a>
+            </div>
+            {historyError ? <p className="error-message">{historyError}</p> : (
+              <ReadingTable readings={readings} mode="history" loading={historyLoading} />
+            )}
+          </div>
         </div>
-        {historyError ? <p className="table-message error-message">{historyError}</p> : (
-          <ReadingTable readings={readings} mode="history" loading={historyLoading} />
-        )}
-      </section>
-
-      <footer>
-        <span>River Monitoring System</span>
-        <span>Bluetooth SPP · FastAPI · SQLite</span>
-      </footer>
+      </div>
     </main>
   );
 }
-

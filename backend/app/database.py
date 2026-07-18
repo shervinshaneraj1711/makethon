@@ -21,16 +21,12 @@ class ReadingRecord(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     device_id: Mapped[str] = mapped_column(String(64), index=True)
-    device_timestamp: Mapped[datetime] = mapped_column(DateTime, index=True)
+    device_timestamp: Mapped[datetime | None] = mapped_column(DateTime, index=True, nullable=True)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
-    distance: Mapped[float] = mapped_column(Float)
-    pressure: Mapped[float] = mapped_column(Float)
-    tilt_x: Mapped[float] = mapped_column(Float)
-    tilt_y: Mapped[float] = mapped_column(Float)
-    tilt_z: Mapped[float] = mapped_column(Float)
-    rain: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-    battery: Mapped[float | None] = mapped_column(Float, nullable=True)
-    device_status: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    water_level: Mapped[float] = mapped_column(Float)
+    roll: Mapped[float] = mapped_column(Float)
+    pitch: Mapped[float] = mapped_column(Float)
+    alert: Mapped[bool] = mapped_column(Boolean)
     raw_packet: Mapped[str] = mapped_column(Text)
 
 
@@ -50,14 +46,10 @@ def _to_domain(record: ReadingRecord) -> StoredReading:
         device_id=record.device_id,
         device_timestamp=record.device_timestamp,
         received_at=record.received_at,
-        distance=record.distance,
-        pressure=record.pressure,
-        tilt_x=record.tilt_x,
-        tilt_y=record.tilt_y,
-        tilt_z=record.tilt_z,
-        rain=record.rain,
-        battery=record.battery,
-        device_status=record.device_status,
+        water_level=record.water_level,
+        roll=record.roll,
+        pitch=record.pitch,
+        alert=record.alert,
         raw_packet=record.raw_packet,
     )
 

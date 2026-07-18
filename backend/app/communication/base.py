@@ -20,6 +20,10 @@ class TelemetryTransport(ABC):
         """Return one complete line, or ``None`` on a normal read timeout."""
 
     @abstractmethod
+    def write(self, data: bytes) -> None:
+        """Write raw bytes to the transport connection."""
+
+    @abstractmethod
     def close(self) -> None:
         """Close the connection safely and idempotently."""
 

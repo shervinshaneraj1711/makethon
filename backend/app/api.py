@@ -21,6 +21,31 @@ def _repository(request: Request):
 async def status(request: Request) -> dict:
     return request.app.state.telemetry_service.snapshot.as_dict()
 
+from .analytics import calculate_flood_prediction
+
+@router.get("/api/v1/predict")
+async def predict(request: Request) -> dict:
+    # Get the last 100 readings
+    rows = await asyncio.to_thread(_repository(request).list, limit=100)
+    # Reverse to make them chronological
+    rows.reverse()
+    return calculate_flood_prediction(rows)
+
+@router.post("/api/v1/config")
+async def update_config(request: Request, interval: int = Query(...)) -> dict:
+    transport = request.app.state.telemetry_service.transport
+    if not transport:
+        return {"error": "Transport not connected"}
+    
+    # Create the JSON command
+    command = f'{{"command": "set_interval", "value": {interval}}}\n'
+    
+    # Send it down the USB cable to the ESP32
+    try:
+        await asyncio.to_thread(transport.write, command.encode('utf-8'))
+        return {"status": "success", "message": f"Interval set to {interval}ms"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @router.get("/api/v1/readings")
 async def readings(
@@ -43,14 +68,10 @@ def _csv_rows(repository, start: datetime | None, end: datetime | None):
             "device_id",
             "device_timestamp",
             "received_at",
-            "distance",
-            "pressure",
-            "tilt_x",
-            "tilt_y",
-            "tilt_z",
-            "rain",
-            "battery",
-            "device_status",
+            "water_level",
+            "roll",
+            "pitch",
+            "alert",
             "raw_packet",
         ]
     )
@@ -63,16 +84,12 @@ def _csv_rows(repository, start: datetime | None, end: datetime | None):
             [
                 row.id,
                 row.device_id,
-                row.device_timestamp.isoformat(),
+                row.device_timestamp.isoformat() if row.device_timestamp else "",
                 row.received_at.isoformat(),
-                row.distance,
-                row.pressure,
-                row.tilt_x,
-                row.tilt_y,
-                row.tilt_z,
-                "" if row.rain is None else int(row.rain),
-                "" if row.battery is None else row.battery,
-                row.device_status or "",
+                row.water_level,
+                row.roll,
+                row.pitch,
+                "" if row.alert is None else int(row.alert),
                 row.raw_packet,
             ]
         )

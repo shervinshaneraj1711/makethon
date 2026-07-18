@@ -12,23 +12,19 @@ class TelemetryReading:
     """One validated ESP32 telemetry packet."""
 
     device_id: str
-    device_timestamp: datetime
+    device_timestamp: datetime | None
     received_at: datetime
-    distance: float
-    pressure: float
-    tilt_x: float
-    tilt_y: float
-    tilt_z: float
-    rain: bool | None
-    battery: float | None
-    device_status: str | None
+    water_level: float
+    roll: float
+    pitch: float
+    alert: bool
     raw_packet: str
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-ready representation without calculated values."""
 
         value = asdict(self)
-        value["device_timestamp"] = self.device_timestamp.isoformat()
+        value["device_timestamp"] = self.device_timestamp.isoformat() if self.device_timestamp else None
         value["received_at"] = self.received_at.isoformat()
         return value
 
