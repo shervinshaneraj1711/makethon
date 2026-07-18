@@ -37,11 +37,29 @@ def calculate_flood_prediction(readings: list) -> dict:
     DANGER_LEVEL = 24.0
     current_level = y[-1]
     
+    # Calculate predictions
+    pred_10 = round(current_level + rate_cm_per_min * 10, 2)
+    pred_30 = round(current_level + rate_cm_per_min * 30, 2)
+    pred_60 = round(current_level + rate_cm_per_min * 60, 2)
+    predictions = {"min10": pred_10, "min30": pred_30, "min60": pred_60}
+    
+    # Calculate a flood risk percentage
+    level_factor = max(0, current_level / DANGER_LEVEL)
+    rate_factor = max(0, rate_cm_per_min / 1.0) # Assume 1.0 cm/min is highly critical
+    flood_risk = int(min(100, (level_factor * 0.4 + rate_factor * 0.6) * 100))
+    if rate_cm_per_min <= 0:
+        flood_risk = int(min(20, (level_factor * 0.2) * 100)) # Minor risk if not rising
+    if current_level >= DANGER_LEVEL:
+        flood_risk = 100
+    
     if current_level >= DANGER_LEVEL:
         return {
             "status": "CRITICAL",
             "rate_cm_per_min": round(rate_cm_per_min, 2),
-            "message": "CRITICAL: Water has breached the danger threshold!"
+            "message": "CRITICAL: Water has breached the danger threshold!",
+            "predictions": predictions,
+            "flood_risk": flood_risk,
+            "confidence": 99
         }
         
     # If the rate is highly positive, water is rising quickly
@@ -53,11 +71,17 @@ def calculate_flood_prediction(readings: list) -> dict:
             "status": "WARNING",
             "rate_cm_per_min": round(rate_cm_per_min, 2),
             "minutes_to_danger": int(minutes_to_danger),
-            "message": f"WARNING: Water rising at {round(rate_cm_per_min, 2)} cm/min. Danger in ~{int(minutes_to_danger)} mins."
+            "message": f"WARNING: Water rising at {round(rate_cm_per_min, 2)} cm/min. Danger in ~{int(minutes_to_danger)} mins.",
+            "predictions": predictions,
+            "flood_risk": flood_risk,
+            "confidence": 92
         }
     
     return {
         "status": "STABLE",
         "rate_cm_per_min": round(rate_cm_per_min, 2),
-        "message": "Water level is stable."
+        "message": "Water level is stable.",
+        "predictions": predictions,
+        "flood_risk": flood_risk,
+        "confidence": 95
     }

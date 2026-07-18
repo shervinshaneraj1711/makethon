@@ -1,14 +1,26 @@
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
-export function LiveChart({ readings }: { readings: any[] }) {
+export function LiveChart({ readings, prediction }: { readings: any[], prediction?: any }) {
   const chartData = [...readings].reverse().map(r => {
     return {
       time: r.device_timestamp 
         ? new Date(r.device_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
         : '',
       water_level: r.water_level !== null ? r.water_level : 0,
+      predicted_level: null
     };
   });
+  
+  if (prediction?.predictions) {
+     // Connect prediction line to the last real data point
+     if (chartData.length > 0) {
+        chartData[chartData.length - 1].predicted_level = chartData[chartData.length - 1].water_level;
+     }
+     
+     chartData.push({ time: "+10m", water_level: null, predicted_level: prediction.predictions.min10 });
+     chartData.push({ time: "+30m", water_level: null, predicted_level: prediction.predictions.min30 });
+     chartData.push({ time: "+60m", water_level: null, predicted_level: prediction.predictions.min60 });
+  }
 
   return (
     <div className="chart-container">
@@ -40,6 +52,7 @@ export function LiveChart({ readings }: { readings: any[] }) {
             contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
             itemStyle={{ color: '#2563eb', fontWeight: 600 }}
           />
+          <ReferenceLine y={24.0} stroke="#dc2626" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Flood Threshold', fill: '#dc2626', fontSize: 12 }} />
           <Area 
             type="monotone" 
             dataKey="water_level" 
@@ -47,6 +60,15 @@ export function LiveChart({ readings }: { readings: any[] }) {
             strokeWidth={2}
             fillOpacity={1} 
             fill="url(#colorDistance)" 
+            isAnimationActive={false}
+          />
+          <Area 
+            type="monotone" 
+            dataKey="predicted_level" 
+            stroke="#f97316" 
+            strokeDasharray="5 5"
+            strokeWidth={2}
+            fill="none" 
             isAnimationActive={false}
           />
         </AreaChart>
