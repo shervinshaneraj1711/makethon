@@ -17,17 +17,19 @@ export const StatsPanel: React.FC<{ readings: Reading[] }> = ({ readings }) => {
   }
 
   return (
-    <div className="panel stats-panel">
-      <div className="panel-header">
-        <h3>Today's Statistics</h3>
+    <div className="panel stats-panel" style={{ padding: "10px 16px" }}>
+      <div className="panel-header" style={{ marginBottom: "5px" }}>
+        <h3 style={{ fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "#6B7280", textAlign: "left" }}>
+          Today's Summary
+        </h3>
       </div>
       <div className="stats-grid">
         <div className="stat-card">
-          <span className="stat-label">Max</span>
+          <span className="stat-label">Maximum</span>
           <strong className="stat-value">{max.toFixed(1)} cm</strong>
         </div>
         <div className="stat-card">
-          <span className="stat-label">Min</span>
+          <span className="stat-label">Minimum</span>
           <strong className="stat-value">{min.toFixed(1)} cm</strong>
         </div>
         <div className="stat-card">
@@ -35,7 +37,7 @@ export const StatsPanel: React.FC<{ readings: Reading[] }> = ({ readings }) => {
           <strong className="stat-value">{avg.toFixed(1)} cm</strong>
         </div>
         <div className="stat-card">
-          <span className="stat-label">Packets</span>
+          <span className="stat-label">Packets Received</span>
           <strong className="stat-value">{packets}</strong>
         </div>
       </div>
