@@ -1,4 +1,4 @@
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 
 export function LiveChart({ readings, prediction }: { readings: any[], prediction?: any }) {
   const chartData = [...readings].reverse().map(r => {
@@ -6,29 +6,29 @@ export function LiveChart({ readings, prediction }: { readings: any[], predictio
       time: r.device_timestamp 
         ? new Date(r.device_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
         : '',
-      water_level: r.water_level !== null ? r.water_level : 0,
-      predicted_level: null
+      "Current Level": r.water_level !== null ? r.water_level : 0,
+      "Prediction": null
     };
   });
   
   if (prediction?.predictions) {
      // Connect prediction line to the last real data point
      if (chartData.length > 0) {
-        chartData[chartData.length - 1].predicted_level = chartData[chartData.length - 1].water_level;
+        chartData[chartData.length - 1]["Prediction"] = chartData[chartData.length - 1]["Current Level"];
      }
      
-     chartData.push({ time: "+10m", water_level: null, predicted_level: prediction.predictions.min10 });
-     chartData.push({ time: "+30m", water_level: null, predicted_level: prediction.predictions.min30 });
-     chartData.push({ time: "+60m", water_level: null, predicted_level: prediction.predictions.min60 });
+     chartData.push({ time: "+10m", "Current Level": null, "Prediction": prediction.predictions.min10 });
+     chartData.push({ time: "+30m", "Current Level": null, "Prediction": prediction.predictions.min30 });
+     chartData.push({ time: "+60m", "Current Level": null, "Prediction": prediction.predictions.min60 });
   }
 
   return (
     <div className="chart-container">
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer width="100%" height={240}>
         <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
           <defs>
-            <linearGradient id="colorDistance" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
+            <linearGradient id="colorLevel" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15}/>
               <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
             </linearGradient>
           </defs>
@@ -37,39 +37,56 @@ export function LiveChart({ readings, prediction }: { readings: any[], predictio
             dataKey="time" 
             stroke="#9ca3af" 
             fontSize={11} 
-            tick={{ fill: '#4b5563' }} 
-            tickMargin={10} 
-            minTickGap={30}
+            tick={{ fill: '#6B7280' }} 
+            tickMargin={8} 
+            minTickGap={40}
           />
           <YAxis 
             stroke="#9ca3af" 
             fontSize={11} 
-            tick={{ fill: '#4b5563' }} 
-            domain={[0, 40]} 
-            tickMargin={10}
+            tick={{ fill: '#6B7280' }} 
+            domain={[0, 35]} 
+            tickMargin={8}
           />
           <Tooltip 
-            contentStyle={{ backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
-            itemStyle={{ color: '#2563eb', fontWeight: 600 }}
+            contentStyle={{ backgroundColor: '#ffffff', borderRadius: '4px', border: '1px solid #e5e7eb', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}
+            itemStyle={{ fontSize: '12px' }}
           />
-          <ReferenceLine y={24.0} stroke="#dc2626" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Flood Threshold', fill: '#dc2626', fontSize: 12 }} />
+          <Legend verticalAlign="top" height={36} iconType="plainline" wrapperStyle={{ fontSize: '12px', color: '#111827' }} />
+          
+          {/* Danger/Flood Threshold Line (Red) */}
+          <ReferenceLine 
+            y={24.0} 
+            stroke="#dc2626" 
+            strokeDasharray="4 4" 
+            label={{ position: 'insideTopLeft', value: 'Flood Threshold (24.0 cm)', fill: '#dc2626', fontSize: 11, fontWeight: 'bold' }} 
+          />
+
+          {/* Normal Level Line (Green) */}
+          <ReferenceLine 
+            y={12.0} 
+            stroke="#16a34a" 
+            strokeDasharray="4 4" 
+            label={{ position: 'insideBottomLeft', value: 'Normal Level (12.0 cm)', fill: '#16a34a', fontSize: 11, fontWeight: 'bold' }} 
+          />
+
           <Area 
             type="monotone" 
-            dataKey="water_level" 
+            dataKey="Current Level" 
             stroke="#2563eb" 
             strokeWidth={2}
             fillOpacity={1} 
-            fill="url(#colorDistance)" 
-            isAnimationActive={false}
+            fill="url(#colorLevel)" 
+            isAnimationActive={true}
           />
           <Area 
             type="monotone" 
-            dataKey="predicted_level" 
+            dataKey="Prediction" 
             stroke="#f97316" 
-            strokeDasharray="5 5"
+            strokeDasharray="4 4"
             strokeWidth={2}
             fill="none" 
-            isAnimationActive={false}
+            isAnimationActive={true}
           />
         </AreaChart>
       </ResponsiveContainer>
