@@ -21,39 +21,36 @@ from .service import TelemetryService
 
 class WiFiHTTPTransport(TelemetryTransport):
     """
-    Placeholder transport for HTTP telemetry ingestion.
+    Logical transport used when telemetry arrives through
+    the FastAPI HTTP endpoint.
 
     The ESP32 sends telemetry to:
+
         POST /api/v1/telemetry
 
-    Therefore the FastAPI application does not need to open
-    COM6 or continuously read from a serial port.
+    Therefore the backend does not open or read a COM port.
     """
 
-    name = "Wi-Fi HTTP"
-
-    def __init__(self) -> None:
-        self.endpoint = "POST /api/v1/telemetry"
+    name = "wifi-http"
+    endpoint = "HTTP /api/v1/telemetry"
 
     def connect(self) -> None:
-        # No persistent connection is opened.
+        # No persistent connection is required.
         pass
 
     def readline(self) -> str | None:
-        # Telemetry arrives through the FastAPI HTTP endpoint,
-        # not through a background read loop.
+        # Telemetry does not arrive through a background
+        # line-reading loop. It arrives through FastAPI.
         return None
 
     def write(self, data: bytes) -> None:
-        """
-        Kept for compatibility with TelemetryService.
-
-        The current Wi-Fi telemetry implementation is focused on
-        ESP32 -> Laptop ingestion. Hardware commands are not sent
-        through this transport yet.
-        """
+        # The current Wi-Fi implementation is for
+        # ESP32 -> laptop telemetry ingestion.
+        #
+        # Outbound ESP32 commands are intentionally not
+        # sent through this transport yet.
         logging.getLogger(__name__).debug(
-            "Ignoring outbound hardware command in Wi-Fi HTTP mode: %s",
+            "Wi-Fi transport received outbound command: %s",
             data.decode("utf-8", errors="replace").strip(),
         )
 
@@ -63,7 +60,6 @@ class WiFiHTTPTransport(TelemetryTransport):
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-
     settings = settings or Settings.from_env()
 
     logging.basicConfig(
@@ -78,17 +74,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # ---------------------------------------------------------
     # Database
     # ---------------------------------------------------------
+    repository = ReadingRepository(settings.database_url)
 
-    repository = ReadingRepository(
-        settings.database_url
-    )
-
+    # Initialize before service construction because the service
+    # restores the latest persisted reading for its snapshot.
     repository.initialize()
 
     # ---------------------------------------------------------
-    # Event broadcaster
+    # WebSocket broadcaster
     # ---------------------------------------------------------
-
     broadcaster = EventBroadcaster()
 
     # ---------------------------------------------------------
@@ -96,20 +90,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # ---------------------------------------------------------
     #
     # IMPORTANT:
-    # We deliberately do NOT create SerialTransport here.
+    # Do NOT create SerialTransport here.
     #
-    # ESP32 telemetry now arrives through:
+    # The ESP32 sends telemetry through:
     #
     # POST /api/v1/telemetry
     #
     # ---------------------------------------------------------
-
     transport = WiFiHTTPTransport()
 
     # ---------------------------------------------------------
     # Telemetry service
     # ---------------------------------------------------------
-
     service = TelemetryService(
         transport,
         repository,
@@ -119,15 +111,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-
-        # Do NOT call service.start().
+        # We deliberately do NOT call service.start().
         #
-        # service.start() would launch the old continuous
-        # transport.readline() loop.
+        # service.start() launches the background transport
+        # readline() loop, which is appropriate for Serial or
+        # Simulator but not for HTTP ingestion.
         #
-        # Incoming telemetry is instead handled by the
-        # HTTP endpoint in api.py.
-
+        # The API endpoint calls service.ingest() directly.
         yield
 
         await service.stop()
@@ -136,7 +126,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # ---------------------------------------------------------
     # FastAPI application
     # ---------------------------------------------------------
-
     app = FastAPI(
         title="River Monitoring API",
         version="1.0.0",
@@ -150,7 +139,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # ---------------------------------------------------------
     # Application state
     # ---------------------------------------------------------
-
     app.state.settings = settings
     app.state.repository = repository
     app.state.broadcaster = broadcaster
@@ -159,13 +147,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # ---------------------------------------------------------
     # API routes
     # ---------------------------------------------------------
-
     app.include_router(router)
 
     # ---------------------------------------------------------
     # CORS
     # ---------------------------------------------------------
-
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -179,7 +165,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # ---------------------------------------------------------
     # React production build
     # ---------------------------------------------------------
-
     frontend_dist = (
         Path(__file__).resolve().parents[2]
         / "frontend"
@@ -187,7 +172,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     if frontend_dist.exists():
-
         assets = frontend_dist / "assets"
 
         if assets.exists():
@@ -202,7 +186,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             include_in_schema=False,
         )
         async def frontend(full_path: str):
-
             candidate = frontend_dist / full_path
 
             if full_path and candidate.is_file():
