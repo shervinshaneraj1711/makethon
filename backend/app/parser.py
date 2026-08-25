@@ -47,6 +47,7 @@ def parse_telemetry(
 
     date_str = data.get("date")
     time_str = data.get("time")
+    timestamp_str = data.get("timestamp")
 
     device_timestamp = None
     if date_str and time_str:
@@ -56,6 +57,12 @@ def parse_telemetry(
             )
         except ValueError as exc:
             raise TelemetryParseError("date/time invalid") from exc
+    elif timestamp_str:
+        try:
+            # Handle ISO formats like YYYY-MM-DDTHH:MM:SS
+            device_timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise TelemetryParseError("timestamp invalid") from exc
 
     water_level = data.get("waterLevel")
     roll = data.get("roll")

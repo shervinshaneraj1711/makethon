@@ -1,7 +1,7 @@
 """FastAPI application factory for River Monitoring Wi-Fi telemetry."""
 
 from __future__ import annotations
-
+\
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
